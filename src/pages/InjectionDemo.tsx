@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Code2 } from 'lucide-react';
 import { lessons } from '../components/lessons';
-import { Tutorial } from '../components/tutorial';
+import { Tutorial } from '../components/Tutorial';
 import { PreviewPane } from '../components/PreviewPane';
 
 function HTMLPreview() {
