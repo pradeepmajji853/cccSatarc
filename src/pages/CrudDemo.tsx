@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { motion } from 'framer-motion';
 import { Plus, Pencil, Trash2, RefreshCw } from 'lucide-react';
 
@@ -11,7 +10,8 @@ interface Topic {
   duration: number;
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
+// Mock URL for frontend-only operation
+const API_URL = "https://ccc-satarc-backend";
 
 function CrudDemo() {
   const [topics, setTopics] = useState<Topic[]>([]);
@@ -30,16 +30,16 @@ function CrudDemo() {
     response: ''
   });
 
-  // Fetch topics
-  const fetchTopics = async () => {
+  // Load topics from localStorage
+  const fetchTopics = () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const response = await axios.get(`${API_URL}/api/topics`);
-      setTopics(response.data);
+      const storedTopics = JSON.parse(localStorage.getItem('topics') || '[]');
+      setTopics(storedTopics);
       setRequestInfo({
         method: 'GET',
         url: `${API_URL}/api/topics`,
-        response: JSON.stringify(response.data, null, 2)
+        response: JSON.stringify(storedTopics, null, 2)
       });
     } catch (err) {
       setError('Failed to fetch topics');
@@ -53,55 +53,47 @@ function CrudDemo() {
   }, []);
 
   // Create topic
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const response = await axios.post(`${API_URL}/api/topics`, formData);
-      setTopics([response.data, ...topics]);
-      setFormData({ title: '', description: '', difficulty: 'Beginner', duration: 1 });
-      setRequestInfo({
-        method: 'POST',
-        url: `${API_URL}/api/topics`,
-        response: JSON.stringify(response.data, null, 2)
-      });
-    } catch (err) {
-      setError('Failed to create topic');
-    }
+    const newTopic = { ...formData, _id: Date.now().toString() };
+    const updatedTopics = [newTopic, ...topics];
+    localStorage.setItem('topics', JSON.stringify(updatedTopics));
+    setTopics(updatedTopics);
+    setFormData({ title: '', description: '', difficulty: 'Beginner', duration: 1 });
+    setRequestInfo({
+      method: 'POST',
+      url: `${API_URL}/api/topics`,
+      response: JSON.stringify(newTopic, null, 2)
+    });
   };
 
   // Update topic
-  const handleUpdate = async (e: React.FormEvent) => {
+  const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTopic) return;
 
-    try {
-      const response = await axios.put(`${API_URL}/api/topics/${selectedTopic._id}`, formData);
-      setTopics(topics.map(t => t._id === selectedTopic._id ? response.data : t));
-      setSelectedTopic(null);
-      setFormData({ title: '', description: '', difficulty: 'Beginner', duration: 1 });
-      setRequestInfo({
-        method: 'PUT',
-        url: `${API_URL}/api/topics/${selectedTopic._id}`,
-        response: JSON.stringify(response.data, null, 2)
-      });
-    } catch (err) {
-      setError('Failed to update topic');
-    }
+    const updatedTopics = topics.map(t => t._id === selectedTopic._id ? { ...selectedTopic, ...formData } : t);
+    localStorage.setItem('topics', JSON.stringify(updatedTopics));
+    setTopics(updatedTopics);
+    setSelectedTopic(null);
+    setFormData({ title: '', description: '', difficulty: 'Beginner', duration: 1 });
+    setRequestInfo({
+      method: 'PUT',
+      url: `${API_URL}/api/topics/${selectedTopic._id}`,
+      response: JSON.stringify(formData, null, 2)
+    });
   };
 
   // Delete topic
-  const handleDelete = async (id: string) => {
-    try {
-      const response = await axios.delete(`${API_URL}/api/topics/${id}`);
-      setTopics(topics.filter(t => t._id !== id));
-      setRequestInfo({
-        method: 'DELETE',
-        url: `${API_URL}/api/topics/${id}`,
-        response: JSON.stringify(response.data, null, 2)
-      });
-    } catch (err) {
-      setError('Failed to delete topic');
-    }
+  const handleDelete = (id: string) => {
+    const updatedTopics = topics.filter(t => t._id !== id);
+    localStorage.setItem('topics', JSON.stringify(updatedTopics));
+    setTopics(updatedTopics);
+    setRequestInfo({
+      method: 'DELETE',
+      url: `${API_URL}/api/topics/${id}`,
+      response: JSON.stringify({ message: 'Topic deleted' }, null, 2)
+    });
   };
 
   return (
@@ -223,37 +215,26 @@ function CrudDemo() {
                     animate={{ opacity: 1 }}
                     className="bg-gray-800 p-4 rounded-lg"
                   >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="text-lg font-medium text-white">{topic.title}</h4>
-                        <p className="text-gray-400 text-sm mt-1">{topic.description}</p>
-                        <div className="flex items-center space-x-4 mt-2">
-                          <span className="text-sm text-cyan-400">{topic.difficulty}</span>
-                          <span className="text-sm text-gray-400">{topic.duration}h</span>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedTopic(topic);
-                            setFormData({
-                              title: topic.title,
-                              description: topic.description,
-                              difficulty: topic.difficulty,
-                              duration: topic.duration
-                            });
-                          }}
-                          className="p-2 text-cyan-400 hover:bg-gray-700 rounded-full"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(topic._id)}
-                          className="p-2 text-red-400 hover:bg-gray-700 rounded-full"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                    <h4 className="text-lg font-bold text-cyan-400">{topic.title}</h4>
+                    <p className="text-gray-400 text-sm">{topic.description}</p>
+                    <p className="text-gray-400 text-sm">Difficulty: {topic.difficulty}</p>
+                    <p className="text-gray-400 text-sm">Duration: {topic.duration} hours</p>
+                    <div className="flex space-x-2 mt-4">
+                      <button
+                        onClick={() => {
+                          setSelectedTopic(topic);
+                          setFormData(topic);
+                        }}
+                        className="px-2 py-1 rounded-md text-sm font-medium text-yellow-500 hover:bg-gray-700"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(topic._id)}
+                        className="px-2 py-1 rounded-md text-sm font-medium text-red-500 hover:bg-gray-700"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </motion.div>
                 ))}
